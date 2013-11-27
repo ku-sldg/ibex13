@@ -1,6 +1,4 @@
-baseurl: http://ku-sldg.github.io
-account: ku-sldg
-repo: ibex13
-maintitle: Niche Modeling
+baseurl: http://ku-sldg.github.io/ibex13/
+title: Niche Modeling
 subtitle: Static Analysis of Species Models
 
