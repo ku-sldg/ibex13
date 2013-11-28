@@ -1,5 +1,4 @@
-- name: No current releases
+- name: none
   version:
   description:
   file:
-
