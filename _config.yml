@@ -2,4 +2,4 @@ baseurl: http://ku-sldg.github.io/ibex13/
 title: Niche Modeling
 subtitle: Static Analysis of Species Models
 github: https://github.com/ku-sldg/ibex13
-description: Niche Modeling is about using model checking to verify properties of species niche models.
+description: The Niche Modeling project is about using model checking to verify properties of species niche models.  We are using the SAL model checker to define and analyze models of species movement and interaction with their environment.  Using static analysis we are checking for extinction and liveness paths resulting from resource consumption an reproduction.
