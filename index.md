@@ -1,30 +1,20 @@
 ---
 layout: frontpage
-title: Niche Modeling
+title: {{ site.title }}
 ---
 
-Niche Modeling is about using model checking to verify properties of
-species niche models.
+{{ site.description }}
 
 ## Recent Activities
+-----
 
-* Coming Soon
+{% include blog-date-10.html %}
 
 ## Team
+-----
 
-Verified TPM is run by The Information and Telecommunication
-Technology Center at The University of Kansas.
+{% include people.html %}
 
-### Faculty
+-----
 
-* Perry Alexander (Advisor)
-
-### Students
-
-* Kayla Sale
-
-## Sponsors
-
-Niche Modeling using Model Checking is sponsored by KU Initiative for
-Maximizing Student Diversity (IMSD)
-
+{{ site.title }} is supported by {{ site.sponsors }}
