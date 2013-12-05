@@ -1,0 +1,88 @@
+IIII : CONTEXT = 
+BEGIN
+
+  CELL : TYPE = {c1,c2,c3};
+  HEALTH : TYPE = {healthy,unhealthy,dead,other};
+  RESOURCES : TYPE = {zero,low,high};
+
+  	inc_h_down(h : HEALTH): HEALTH = 
+  		IF h=dead THEN dead
+  		ELSIF h=unhealthy THEN dead
+  		ELSIF h=healthy THEN unhealthy
+  		ELSE other
+  		ENDIF;
+  	  		
+  	inc_h_up(h : HEALTH): HEALTH = 
+  		IF h=dead THEN dead
+  		ELSIF h=unhealthy THEN healthy
+  		ELSIF h=healthy THEN healthy
+  		ELSE other
+  		ENDIF;
+
+  IIII: MODULE =
+  BEGIN
+    LOCAL s : CELL
+    LOCAL a : ARRAY CELL OF RESOURCES
+    LOCAL r : RESOURCES
+    LOCAL h : HEALTH 
+  INITIALIZATION
+    s = c1;
+    h = healthy;
+    r = high;
+    a = [[s:CELL]high];
+  TRANSITION
+  
+  [  	
+    s=c1 AND a[c1]=high -->
+    	a'=a WITH [c1]:=low;
+    	h'=inc_h_up(h);
+    	s' IN {c1,c2};	
+    []
+    s=c1 AND a[c1]=low --> 
+    	a'=a WITH [c1]:=zero;
+    	h'=inc_h_up(h);
+    	s' IN {c1,c2};
+    []
+    NOT s=c1 AND a[c1]=zero --> 
+    	a'=a WITH [c1]:=low;
+    []
+    NOT s=c1 AND a[c1]=low --> 
+    	a'=a WITH [c1]:=high;
+    []
+    s=c2 AND a[c2]=high -->
+    	a'=a WITH [c2]:=low;
+    	h'=inc_h_up(h);
+    	s' IN {c1,c2,c3};
+    []
+    s=c2 AND a[c2]=low --> 
+    	a'=a WITH [c2]:=zero;
+    	h'=inc_h_up(h);
+    	s' IN {c1,c2,c3};
+    []
+    NOT s=c2 AND a[c2]=zero --> 
+    	a'=a WITH [c2]:=low;
+    []
+    NOT s=c2 AND a[c2]=low --> 
+    	a'=a WITH [c2]:=high;
+    []
+    s=c3 AND a[c3]=high -->
+    	a'=a WITH [c3]:=low;
+    	h'=inc_h_up(h);
+    	s' IN {c2,c3};
+    []
+    s=c3 AND a[c3]=low --> 
+    	a'=a WITH [c3]:=zero;
+    	h'=inc_h_up(h);
+    	s' IN {c2,c3};
+    []
+    NOT s=c3 AND a[c3]=zero --> 
+    	a'=a WITH [c3]:=low;
+    []
+    NOT s=c3 AND a[c3]=low --> 
+    	a'=a WITH [c3]:=high;
+    []
+    a[s]=zero AND s=s' --> h'=inc_h_down(h);
+  ]
+  END;
+  
+END
