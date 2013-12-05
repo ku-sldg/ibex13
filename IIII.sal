@@ -3,7 +3,7 @@ BEGIN
 
   CELL : TYPE = {c1,c2,c3};
   HEALTH : TYPE = {healthy,unhealthy,dead,other};
-  RESOURCES : TYPE = {zero,low,high};
+  RESOURCES : TYPE = {zero,low,high,otherly};
 
   	inc_h_down(h : HEALTH): HEALTH = 
   		IF h=dead THEN dead
@@ -18,7 +18,21 @@ BEGIN
   		ELSIF h=healthy THEN healthy
   		ELSE other
   		ENDIF;
-
+  		
+  	inc_r_up(r : RESOURCES): RESOURCES = 
+  		IF r=zero THEN low
+  		ELSIF r=low THEN high
+  		ELSIF r= high then high
+  		ELSE otherly  
+  		ENDIF;
+  		
+  	inc_r_down(r : RESOURCES): RESOURCES =
+  		IF r=high THEN low
+  		ELSIF r=low THEN zero
+  		ELSIF r=zero THEN zero
+  		ELSE otherly
+  		ENDIF;
+  		
   IIII: MODULE =
   BEGIN
     LOCAL s : CELL
@@ -34,7 +48,7 @@ BEGIN
   
   [  	
     s=c1 AND a[c1]=high -->
-    	a'=a WITH [c1]:=low;
+    	a'[c1]=inc_r_down;
     	h'=inc_h_up(h);
     	s' IN {c1,c2};	
     []
