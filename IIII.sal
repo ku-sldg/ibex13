@@ -48,7 +48,7 @@ BEGIN
   
   [  	
     s=c1 AND a[c1]=high -->
-    	a'[c1]=inc_r_down;
+    	a'[c1]=inc_r_down(a[c1]);
     	h'=inc_h_up(h);
     	s' IN {c1,c2};	
     []
