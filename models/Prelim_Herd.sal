@@ -1,0 +1,235 @@
+Prelim_Herd : CONTEXT = 
+BEGIN
+  CELL : TYPE = {c1,c2,c3,c4,c5,c6,c7,c8,c9};
+  HEALTH : TYPE = {healthy,unhealthy,dead};
+  RESOURCES : TYPE = {zero,low,high};
+  MONTH : TYPE = {Jan,Feb,March,Apr,May,June,July,Aug,Sept,Oct,Nov,Dec}; %month
+  STAGE : TYPE = {m_kid,f_kid,m_sm,f_sm,m_rut,f_rut,pregnant,weaning,null};
+  FLAG : TYPE = BOOLEAN;
+  NUMBER : TYPE = [0..15]; %max # of ibex in herd
+  %interactions between individual ibex (or herd) and location and predators
+  
+  	inc_h_down(h : HEALTH): HEALTH = 
+  		IF h=healthy THEN unhealthy
+  		ELSE dead
+  		ENDIF;
+
+  	inc_h_up(h : HEALTH): HEALTH = 
+  		IF h=dead THEN dead
+  		ELSE healthy
+  		ENDIF;
+  		
+  	inc_r_up(r : RESOURCES): RESOURCES = 
+  		IF r=zero THEN low
+  		ELSE high
+  		ENDIF;
+  		
+  	inc_r_down(r : RESOURCES): RESOURCES =
+  		IF r=high THEN low
+  		ELSE zero
+  		ENDIF;
+  		
+    clock(m : MONTH): MONTH = 
+  		IF m=Jan THEN Feb
+  		ELSIF m=Feb THEN March
+  		ELSIF m=March THEN Apr
+  		ELSIF m=Apr THEN May
+  		ELSIF m=May THEN June
+  		ELSIF m=June THEN July
+  		ELSIF m=July THEN Aug
+  		ELSIF m=Aug THEN Sept
+  		ELSIF m=Sept THEN Oct
+  		ELSIF m=Oct THEN Nov
+  		ELSIF m=Nov THEN Dec
+  		ELSE Jan
+  		ENDIF;
+  	
+  	mature(m : MONTH, h : HEALTH, s : STAGE, f : FLAG): STAGE =
+  		IF h=dead THEN null 					%ibex is dead, empties spot
+  		ELSIF m=Sept AND h=healthy AND s=m_sm 
+  				THEN m_rut
+  		ELSIF m=Sept AND h=healthy AND s=f_sm 
+  				THEN f_rut
+  		ELSIF m=Oct OR m=Nov AND h=healthy AND f=TRUE AND s=f_rut 
+  				THEN pregnant 					%fertile, females become pregnant
+		ELSIF h=healthy AND s=pregnant 
+				THEN weaning
+  		ELSIF h=unhealthy AND s=pregnant 
+  				THEN f_sm 						%mother is unhealthy, baby dies
+  		ELSIF m=Dec AND h=healthy AND s=m_kid 
+  				THEN m_sm 						%matures after first year (not accurate)
+  		ELSIF m=Dec AND h=healthy AND s=f_kid 
+  				THEN f_sm
+  		ELSE s
+  		ENDIF;
+  		
+  	maturing(m : MONTH, h : HEALTH, s : STAGE, f : FLAG, A : ARRAY STAGE OF NUMBER ): NUMBER = 
+		IF h=healthy AND m=Sept AND s=m_sm THEN 0
+  		ELSIF h=healthy AND m=Sept AND s=f_sm THEN 0
+  		ELSIF h=healthy AND m=Sept AND s=m_rut THEN A[m_sm]
+  		ELSIF h=healthy AND m=Sept AND s=f_rut THEN A[f_sm]
+  		ELSIF h=healthy AND f=TRUE AND m=Oct AND s=f_rut THEN 0
+  		ELSIF h=healthy AND f=TRUE AND m=Oct AND s=pregnant THEN A[f_rut]
+  		ELSIF h=healthy AND m=Nov AND s=pregnant THEN 0
+		ELSIF h=healthy AND m=Nov AND s=weaning THEN A[pregnant]
+		ELSIF h=healthy AND m=Dec AND s=m_kid THEN A[weaning]
+		ELSIF h=healthy AND m=Dec AND s=f_kid THEN A[weaning]
+		ELSIF h=healthy AND m=Dec AND s=m_sm THEN A[m_rut] + A[m_sm] + A[m_kid]
+		ELSIF h=healthy AND m=Dec AND s=f_sm 
+			THEN A[f_rut] + A[f_sm] + A[f_kid] + A[weaning] + A[pregnant] 
+		ELSIF m=Dec AND s=m_rut THEN 0
+		ELSIF m=Dec AND s=f_rut THEN 0
+		ELSIF h=healthy AND m=Dec AND s=pregnant THEN 0
+		ELSIF h=healthy AND m=Dec AND s=weaning THEN 0
+  		ELSIF s=pregnant THEN 0		
+  		ELSIF s=null 
+  			THEN 15 - (A[m_kid] + A[f_kid] + A[m_sm] + A[f_sm] + A[m_rut] + A[f_rut] + A[pregnant] + A[weaning])
+  		ELSE A[s]
+  		ENDIF;
+  		%still need to figure out distribution of sexes at 'birth' and 'death': floor(0.5 * A[weaning])?
+  	
+  	fertility(m_rut : NUMBER, f_rut : NUMBER): BOOLEAN = 
+  		IF m_rut > 0 THEN TRUE
+  		ELSE FALSE
+  		ENDIF;
+  	
+  	dangerous(c : CELL, p : CELL): BOOLEAN =
+  		IF c=p THEN TRUE
+  		ELSE FALSE
+  		ENDIF;
+  		
+  Prelim_Herd : MODULE =
+  BEGIN
+    LOCAL c : CELL 						%herd location
+    LOCAL a : ARRAY CELL OF RESOURCES 	%landscape resources/food availability
+    LOCAL h : HEALTH 					%herd health
+    LOCAL m : MONTH 					%time increments
+    %LOCAL s : STAGE 					%ibex life stage
+    LOCAL fertile : FLAG 				%fertile, there exists >=1 m_rut AND 1 f_rut
+    LOCAL p : CELL						%predator location
+    LOCAL danger : FLAG
+    LOCAL A : ARRAY STAGE OF NUMBER
+    
+  DEFINITION
+  	p IN {c6,c8,c9};
+  	danger = dangerous(c,p);
+  	fertile = fertility(A[m_rut], A[f_rut]);
+  	
+  INITIALIZATION
+    c = c1;
+    h = healthy;
+    a = [[c:CELL]high];
+    m = July;
+    %s = f_sm;
+    p = c6;
+    
+    A[m_kid] = 0;
+	A[f_kid] = 0;
+	A[m_sm] = 6;
+	A[f_sm] = 1;
+	A[m_rut] = 0;
+	A[f_rut] = 0;
+	A[pregnant] = 0;
+	A[weaning] = 0;
+	A[null] = 15 - (A[m_kid] + A[f_kid] + A[m_sm] + A[f_sm] + A[m_rut] + A[f_rut] + A[pregnant] + A[weaning]);
+	
+  TRANSITION
+  [ 
+     %try to make indexed arrays for a herd
+     h=dead --> 
+    	h'=dead;
+    	c'=c;
+    	%s'=null;
+    	
+     []	
+     a[c]=zero AND c=c' --> 
+    	h'=inc_h_down(h);
+    	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);	
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];
+
+     []
+     c=c1 -->
+    	a'=[[c:CELL] if c=c1 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+     	c' IN {c1,c2,c4,c5};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];
+		%would like to say, if danger=TRUE then c=c1 (ibex escapes) else in {..}
+     []
+     c=c2 -->
+    	a'=[[c:CELL] if c=c2 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+     	c' IN {c1,c2,c3,c4,c5,c6};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];	
+
+     []
+    c=c3 -->
+    	a'=[[c:CELL] if c=c3 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+    	c' IN {c2,c3,c5,c6};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];
+
+    []
+    c=c4 --> 
+    	a'=[[c:CELL] if c=c4 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+    	c' IN {c1,c2,c4,c5,c7,c8};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];
+
+    []
+    c=c5 -->  
+    	a'=[[c:CELL] if c=c5 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+    	c' IN {c1,c2,c3,c4,c5,c6,c7,c8,c9};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];
+
+    []
+    c=c6 --> 
+    	a'=[[c:CELL] if c=c6 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+    	c' IN {c2,c3,c5,c6,c8,c9};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];
+
+    []
+    c=c7 -->  
+    	a'=[[c:CELL] if c=c7 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+    	c' IN {c4,c5,c7,c8};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];
+
+    []
+    c=c8 -->  
+    	a'=[[c:CELL] if c=c8 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+    	c' IN {c4,c5,c6,c7,c8,c9};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];
+
+    []
+    c=c9 -->  
+    	a'=[[c:CELL] if c=c9 then inc_r_down(a[c]) else inc_r_up(a[c]) endif]; 
+     	h'= IF danger=TRUE then inc_h_down(h) ELSE inc_h_up(h) ENDIF;
+    	c' IN {c5,c6,c8,c9};
+     	m'=clock(m);
+     	%s'=mature(m,h,s,fertile);
+     	A'=[[s:STAGE] maturing(m,h,s,fertile,A)];	
+
+  ]
+  END;
+  
+END
