@@ -10,7 +10,7 @@ Verified TPM is specifying the TPM 1.2 formally in PVS.
 
 ### Students
 
-* Brigid Halling
+* Kayla Sale (@kaylasale1)
 
 ## Publications
 
@@ -22,4 +22,4 @@ Coming Soon
 
 ## Sponsors
 
-Verified TPM was sponsored by The Battelle Memorial Trust
+Verified TPM was sponsored by 
