@@ -393,7 +393,7 @@ BEGIN
   %END);
   %this doesn't work because "c is not a state variable"
   		
-  AsynchronousComp : MODULE = HerdA[]HerdB;
+  AsynchronousComp : MODULE = HerdA [] HerdB;
   %asynchronous doesn't work because it chooses from any of the relevant lines in HerdA OR HerdB with which to step
 
   		
