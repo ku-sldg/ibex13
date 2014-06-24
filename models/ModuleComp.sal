@@ -120,8 +120,7 @@ BEGIN
   			ENDIF
   		ELSE No[s]
   		ENDIF;
-  		
-  		%order of incurring sickness: weaning, pregnant, kids, rut, sm
+  		%order of incurring "unhealthy": weaning, pregnant, kids, rut, sm
   		
   	stage_fn(s : STAGE, h: HEALTH, No : ARRAY STAGE OF NUMBER, m : MONTH, f : BOOLEAN, r : RESOURCES, p : BOOLEAN, A : ARRAY STAGE OF HEALTH): NUMBER = 
   		IF h=dead THEN 0
@@ -156,16 +155,37 @@ BEGIN
   		IF c=p THEN TRUE
   		ELSE FALSE
   		ENDIF;	
+%---------------------------------------------------------------------------------------  
+  Clock : MODULE = 
+  BEGIN
+  	OUTPUT t : MONTH
+  	GLOBAL goA : BOOLEAN
+  	GLOBAL goB : BOOLEAN
   
-  HerdA : MODULE =
+  INITIALIZATION
+  	t = Sept; 
+  	goA = FALSE;
+  	goB = FALSE;
+  	
+  TRANSITION
+  [
+  	time_elapses: 
+  	goA=FALSE AND goB=FALSE --> t'=clock(t);
+  								goA'=TRUE;
+  								goB'=TRUE;
+  ]
+  END;
+%---------------------------------------------------------------------------------------
+  HerdA[m : MONTH] : MODULE =
   BEGIN
     LOCAL f : FLAG 						%fertility
 	LOCAL danger : FLAG 				%herd threatened by predator
 	LOCAL p : CELL						%predator location
 	LOCAL c : CELL						%herd location
-    GLOBAL m : MONTH						%month
+    INPUT m : MONTH						%month
     LOCAL A : HERDtuple					%herd A
-    GLOBAL r : ARRAY CELL OF RESOURCES 	%landscape resources/food availability
+    LOCAL r : ARRAY CELL OF RESOURCES 	%landscape resources/food availability
+    GLOBAL goA : FLAG					%time to step? 		
   
   DEFINITION
   	p IN {c6,c8,c9};
@@ -173,7 +193,6 @@ BEGIN
   	f = fertility(A.1[m_rut], A.1[f_rut], A.2[m_rut], A.2[f_rut]);	
 					
   INITIALIZATION
-  	m = Sept;
     A.1[m_kid] = 1;
 	A.1[f_kid] = 1;
 	A.1[m_sm] = 0;
@@ -187,10 +206,10 @@ BEGIN
 	A.2 = [[s:STAGE] healthy];
   	c = c1;
 	r = [[c:CELL] zero];
+	goA = FALSE;
 	
   TRANSITION 
   [
-	  		  
 	 A.1[null] = 15 --> c'=c;	 
      []
      c=c1 -->
@@ -198,15 +217,16 @@ BEGIN
 		A'.1 =[[s:STAGE] stage_fn(s, A.2[s], A.1, m, f, r[c], danger, A.2)];
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
 		c' IN {c1,c2,c4,c5};
-     	m'=clock(m);
-
+     	goA' = FALSE;
+		%would like to say, if danger=TRUE then c=c1 (ibex escapes) else in {..}
+		
      []
      c=c2 -->
     	r'=[[c:CELL] if c=c1 then inc_r_down(r[c]) else inc_r_up(r[c]) endif]; 
 		A'.1 =[[s:STAGE] stage_fn(s, A.2[s], A.1, m, f, r[c], danger, A.2)];
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
 		c' IN {c1,c2,c3,c4,c5,c6};
-     	m'=clock(m);
+     	goA' = FALSE;
 
      []
     c=c3 -->
@@ -214,14 +234,14 @@ BEGIN
 		A'.1 =[[s:STAGE] stage_fn(s, A.2[s], A.1, m, f, r[c], danger, A.2)];
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
 		c' IN {c2,c3,c5,c6};
-     	m'=clock(m);
+     	goA' = FALSE;
     []
     c=c4 --> 
     	r'=[[c:CELL] if c=c1 then inc_r_down(r[c]) else inc_r_up(r[c]) endif]; 
 		A'.1 =[[s:STAGE] stage_fn(s, A.2[s], A.1, m, f, r[c], danger, A.2)];
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
     	c' IN {c1,c2,c4,c5,c7,c8};
-     	m'=clock(m);
+     	goA' = FALSE;
 
     []
     c=c5 -->  
@@ -229,7 +249,7 @@ BEGIN
 		A'.1 =[[s:STAGE] stage_fn(s, A.2[s], A.1, m, f, r[c], danger, A.2)];
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
     	c' IN {c1,c2,c3,c4,c5,c6,c7,c8,c9};
-     	m'=clock(m);
+     	goA' = FALSE;
 
     []
     c=c6 --> 
@@ -238,7 +258,7 @@ BEGIN
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
 		%to use new value of A.1, try A'.1 or try new definition of A'.1 (plug it in, and use a new function to do that for me) 
     	c' IN {c2,c3,c5,c6,c8,c9};
-     	m'=clock(m);
+     	goA' = FALSE;
 
     []
     c=c7 -->  
@@ -246,7 +266,7 @@ BEGIN
 		A'.1 =[[s:STAGE] stage_fn(s, A.2[s], A.1, m, f, r[c], danger, A.2)];
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
     	c' IN {c4,c5,c7,c8};
-     	m'=clock(m);
+     	goA' = FALSE;
 
     []
     c=c8 -->  
@@ -254,7 +274,7 @@ BEGIN
 		A'.1 =[[s:STAGE] stage_fn(s, A.2[s], A.1, m, f, r[c], danger, A.2)];
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
     	c' IN {c4,c5,c6,c7,c8,c9};
-     	m'=clock(m);
+     	goA' = FALSE;
 
     []
     c=c9 -->  
@@ -262,20 +282,22 @@ BEGIN
 		A'.1 =[[s:STAGE] stage_fn(s, A.2[s], A.1, m, f, r[c], danger, A.2)];
 		A'.2 = [[s:STAGE] health_fn(s, A.2[s], A.1, danger, r[c], A.2)];
     	c' IN {c5,c6,c8,c9};
-     	m'=clock(m);
+     	goA' = FALSE;
 
   ]
   END;
-  
-  HerdB : MODULE =
+%---------------------------------------------------------------------------------------
+  HerdB[m : MONTH] : MODULE =
   BEGIN
     LOCAL f : FLAG 						%fertility
 	LOCAL danger : FLAG 				%herd threatened by predator
 	LOCAL p : CELL						%predator location
 	LOCAL b : CELL						%herd location
-    GLOBAL m : MONTH						%month
+    INPUT m : MONTH						%month
     LOCAL B : HERDtuple					%herd B
-    GLOBAL r : ARRAY CELL OF RESOURCES 	%landscape resources/food availability
+    LOCAL r : ARRAY CELL OF RESOURCES 	%landscape resources/food availability
+    GLOBAL goB : FLAG					%time to step? 		
+
   
   DEFINITION
   	p IN {c6,c8,c9};
@@ -283,7 +305,6 @@ BEGIN
   	f = fertility(B.1[m_rut], B.1[f_rut], B.2[m_rut], B.2[f_rut]);	
 					
   INITIALIZATION
-  	m = Sept;
     B.1[m_kid] = 0;
 	B.1[f_kid] = 0;
 	B.1[m_sm] = 2;
@@ -297,11 +318,10 @@ BEGIN
 	B.2 = [[s:STAGE] healthy];
   	b = c1;
 	r = [[c:CELL] zero];
+	goB = FALSE;
 	
   TRANSITION 
   [
-
-	  		  
 	 B.1[null] = 15 --> b'=b;	 
      []
      b=c1 -->
@@ -309,15 +329,16 @@ BEGIN
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
 		b' IN {c1,c2,c4,c5};
-     	m'=clock(m);
-
+		goB' = FALSE; 
+		%would like to say, if danger=TRUE then c=c1 (ibex escapes) else in {..}
+		
      []
      b=c2 -->
     	r'=[[c:CELL] if c=c1 then inc_r_down(r[c]) else inc_r_up(r[c]) endif]; 
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
 		b' IN {c1,c2,c3,c4,c5,c6};
-     	m'=clock(m);
+		goB' = FALSE; 
 
      []
     b=c3 -->
@@ -325,30 +346,28 @@ BEGIN
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
 		b' IN {c2,c3,c5,c6};
-     	m'=clock(m);
+		goB' = FALSE; 
     []
     b=c4 --> 
     	r'=[[c:CELL] if c=c1 then inc_r_down(r[c]) else inc_r_up(r[c]) endif]; 
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
     	b' IN {c1,c2,c4,c5,c7,c8};
-     	m'=clock(m);
-
+		goB' = FALSE; 
     []
     b=c5 -->  
     	r'=[[c:CELL] if c=c1 then inc_r_down(r[c]) else inc_r_up(r[c]) endif]; 
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
     	b' IN {c1,c2,c3,c4,c5,c6,c7,c8,c9};
-     	m'=clock(m);
-
+		goB' = FALSE;
     []
     b=c6 --> 
     	r'=[[c:CELL] if c=c1 then inc_r_down(r[c]) else inc_r_up(r[c]) endif]; 
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
     	b' IN {c2,c3,c5,c6,c8,c9};
-     	m'=clock(m);
+		goB' = FALSE; 
 
     []
     b=c7 -->  
@@ -356,7 +375,7 @@ BEGIN
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
     	b' IN {c4,c5,c7,c8};
-     	m'=clock(m);
+		goB' = FALSE; 
 
     []
     b=c8 -->  
@@ -364,7 +383,7 @@ BEGIN
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
     	b' IN {c4,c5,c6,c7,c8,c9};
-     	m'=clock(m);
+		goB' = FALSE; 
 
     []
     b=c9 -->  
@@ -372,35 +391,17 @@ BEGIN
 		B'.1 =[[s:STAGE] stage_fn(s, B.2[s], B.1, m, f, r[b], danger, B.2)];
 		B'.2 = [[s:STAGE] health_fn(s, B.2[s], B.1, danger, r[b], B.2)];
     	b' IN {c5,c6,c8,c9};
-     	m'=clock(m);
+		goB' = FALSE; 
 
   ]
   END;
-  
-  %Env : MODULE =
-  %WITH
-  	%GLOBAL res : ARRAY CELL OF RESOURCES; 	%landscape resources/food availability
-  	%GLOBAL time : MONTH;						%month
-  	%GLOBAL e : CELL
-  %(RENAME c TO e 
-  %IN BEGIN
-  %TRANSITION
-  %[
-  %		time -->
-  %			time'=clock(time);
-  %			res'=[[e:CELL]if e=c1 then inc_r_down(res[e]) else inc_r_up(res[e]) endif]; 
-  %]
-  %END);
-  %this doesn't work because "c is not a state variable"
-  		
-  AsynchronousComp : MODULE = HerdA [] HerdB;
-  %asynchronous doesn't work because it chooses from any of the relevant lines in HerdA OR HerdB with which to step
-
-  		
-  %Ecosystem : MODULE = HerdA||HerdB;
-  %synchronous doesn't work because modules can't share a global variable, according to the wfc
-  
-  %things I want to compose: month, resource array
-
+%---------------------------------------------------------------------------------------
+ Calendar : MODULE =
+  	WITH OUTPUT goA_ : BOOLEAN, goB_ : BOOLEAN
+  		([] (m : MONTH) : (RENAME goA TO goA_ in HerdA[m])
+  		[] ([] (m : MONTH) : (RENAME goB TO goB_ in HerdB[m])));
+%---------------------------------------------------------------------------------------
+  AsynchronousComp : MODULE = Clock[]Calendar;
+%---------------------------------------------------------------------------------------
 
 END
