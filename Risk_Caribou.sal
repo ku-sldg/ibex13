@@ -1,0 +1,222 @@
+Risk_Caribou: CONTEXT = 
+BEGIN
+  HEALTH : TYPE = {healthy,hungry,desperate,unhealthy,lost_pregnancy}; % max # of female caribou is 13; the concern is not that female dies but that she loses pregnancy because this herd is threatened
+  CELL : TYPE = {c0000,c0001,c0002,c0003,c0004,c0005,c0006,c0007,c0008,c0009,c0010,c0011,c0012,c0013,c0014}; %location in the environment; ~45x45m^2; currently, model can only handle up to 15 cells 
+  FLAG : TYPE = BOOLEAN;
+  RESOURCES : TYPE = {zero,poor,low,med,high}; %"forage availability map": combines land cover and energetic content; there is a max set for each cell
+  TIME : TYPE = {t0,t1,t2,t3,t4,t5}; %timesteps/movements (4 hour increments) per day over 180 day winter
+	
+  	inc_h_down(h : HEALTH): HEALTH = 
+  		IF h=healthy THEN hungry
+  		ELSIF h=hungry THEN desperate
+  		ELSIF h=desperate THEN unhealthy
+  		ELSE lost_pregnancy
+  		ENDIF;
+%
+  	inc_h_up(h : HEALTH): HEALTH = 
+  		IF h=lost_pregnancy THEN lost_pregnancy
+  		ELSIF h=unhealthy THEN desperate
+  		ELSIF h=desperate THEN unhealthy
+  		ELSE healthy
+  		ENDIF;
+%    		
+  	inc_r_down(r : RESOURCES): RESOURCES =
+  		IF r=high THEN med
+  		ELSIF r=med THEN low
+  		ELSIF r=low THEN poor
+  		ELSE zero
+  		ENDIF;
+%  		
+  	inc_r_up(r : RESOURCES): RESOURCES = 
+  		IF r=zero THEN poor
+  		ELSIF r=poor THEN low
+  		ELSIF r=low THEN med
+  		ELSE high
+  		ENDIF;
+
+%---------------------------------------------------------------------------------------
+% CARIBOU FUNCTIONS
+%---------------------------------------------------------------------------------------
+   		
+ 	check_h(h : HEALTH, p : FLAG, r : RESOURCES): FLAG = %boolean decision, move or don't move? define transitions by "c=c1 AND move=TRUE --> c'={...}; reset health; reset resources; %%alternatively, could do "move", "move with desperation", or "no move" 
+ 	  	IF h=healthy OR h=hungry THEN 
+ 	  		IF r=high OR r=med OR r=low OR r=poor THEN FALSE
+ 	  		ELSE TRUE
+ 	  		ENDIF
+ 	  	ELSIF p=TRUE THEN TRUE 
+ 	  	ELSIF h=desperate OR h=unhealthy THEN 
+ 	  		IF r=high OR r=med OR r=low THEN FALSE
+ 	  		ELSE TRUE
+ 	  		ENDIF %can't travel far, maybe should be false?
+ 	 	ELSE FALSE
+  		ENDIF;
+ % 		
+  	new_day(h : HEALTH, t : TIME): HEALTH =
+  		IF t=t0 AND h=healthy OR h=hungry THEN hungry
+  		ELSE h
+  		ENDIF;
+%  		
+  	time(t : TIME): TIME=
+  		IF t=t0 THEN t1
+  		ELSIF t=t1 THEN t2
+  		ELSIF t=t2 THEN t3
+  		ELSIF t=t3 THEN t4
+  		ELSIF t=t4 THEN t5
+  		ELSE t0
+  		ENDIF;
+
+%  NOTES:   		
+% resources don't recover (they have a maximum set by the productivity of various microhabitats)
+% if disturbed by predation risk, caribou will move to one of the safe range cells within 2-4 cells at a health cost
+% 6 movements per day (4 h increments)
+% health is set to ≤ hungry every new day
+
+%---------------------------------------------------------------------------------------
+
+	Caribou_A : MODULE =
+	BEGIN
+		LOCAL a : CELL								        %caribou individual location
+		LOCAL t	: TIME								        %time steps (per day)
+		LOCAL h : HEALTH							        %caribou individual health
+		LOCAL r	: ARRAY CELL OF RESOURCES			%landscape resources/food availability
+		LOCAL move_A : FLAG							      %if the caribou will move to escape range
+		LOCAL p : ARRAY CELL OF BOOLEAN				%static predation matrix
+		LOCAL escape_range : CELL					    %landscape caribou retreat to when they feel at 
+		                                      %  risk and are healthy enough to travel long distances
+	
+	DEFINITION
+		escape_range IN {c0000, c0001, c0003, c0005};
+		
+	INITIALIZATION
+		r[c0000]=high;
+		r[c0001]=high;
+		r[c0002]=high;
+		r[c0003]=high;
+		r[c0004]=poor;
+		r[c0005]=med;
+		r[c0006]=high;
+		r[c0007]=low;
+		r[c0008]=poor;
+		r[c0009]=low;
+		r[c0010]=med;
+		r[c0011]=med;
+		r[c0012]=zero;
+		r[c0013]=poor;
+		r[c0014]=low;
+		p[c0000]=TRUE;
+		p[c0001]=FALSE;
+		p[c0002]=FALSE;
+		p[c0003]=FALSE;
+		p[c0004]=TRUE;
+		p[c0005]=FALSE;
+		p[c0006]=FALSE;
+		p[c0007]=FALSE;
+		p[c0008]=TRUE;
+		p[c0009]=FALSE;
+		p[c0010]=FALSE;
+		p[c0011]=FALSE;
+		p[c0012]=TRUE;
+		p[c0013]=FALSE;
+		p[c0014]=FALSE;
+		a=c0000;
+		h=healthy;
+		t=t0;
+		move_A=FALSE;
+
+	TRANSITION
+	[
+		move_A=TRUE --> move_A'=FALSE; a'=escape_range; h'=inc_h_down(h); t'=time(t);
+		[]
+		a=c0000 AND move_A=FALSE --> a' IN {c0001,c0005,c0004};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0001 AND move_A=FALSE --> a' IN {c0000,c0005,c0004,c0002,c0006};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0002 AND move_A=FALSE --> a' IN {c0001,c0005,c0006,c0007,c0003};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0003 AND move_A=FALSE --> a' IN {c0002,c0006,c0007};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0004 AND move_A=FALSE --> a' IN {c0001,c0005,c0000,c0009,c0008};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0005 AND move_A=FALSE --> a' IN {c0000,c0001,c0004,c0002,c0006,c0008,c0009,c0010};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0006 AND move_A=FALSE --> a' IN {c0001,c0005,c0000,c0007,c0003,c0002,c0010,c0011};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0007 AND move_A=FALSE --> a' IN {c0002,c0006,c0003,c0010,c0011};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0008 AND move_A=FALSE --> a' IN {c0004,c0005,c0009,c0012,c0013};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+		[]
+		a=c0009 AND move_A=FALSE --> a' IN {c0004,c0005,c0006,c0012,c0013,c0014,c0008,c0010};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);								
+		[]
+		a=c0010 AND move_A=FALSE --> a' IN {c0005,c0006,c0011,c0013,c0014,c0009,c0007};%
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);	
+		[]
+		a=c0011 AND move_A=FALSE --> a' IN {c0006,c0007,c0010,c0014};%
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);								
+		[]
+		a=c0012 AND move_A=FALSE --> a' IN {c0008,c0009,c0013};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);	
+		[]
+		a=c0013 AND move_A=FALSE --> a' IN {c0012,c0008,c0009,c0014,c0010};
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);								
+		[]
+		a=c0014 AND move_A=FALSE --> a' IN {c0010,c0009,c0013,c0011};%
+									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
+									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
+									move_A'=check_h(h,p[a],r[a]);
+									t'=time(t);
+	]	
+	END;
+		
+END
