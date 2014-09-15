@@ -38,7 +38,7 @@ BEGIN
 % CARIBOU FUNCTIONS
 %---------------------------------------------------------------------------------------
    		
- 	check_h(h : HEALTH, p : FLAG, r : RESOURCES): FLAG = %boolean decision, move or don't move? define transitions by "c=c1 AND move=TRUE --> c'={...}; reset health; reset resources; %%alternatively, could do "move", "move with desperation", or "no move" 
+ 	check_h(h : HEALTH, p : FLAG, r : RESOURCES): FLAG = %boolean decision, move or don't move when exposed to perceive predation risk 
  	  	IF h=healthy OR h=hungry THEN 
  	  		IF r=high OR r=med OR r=low OR r=poor THEN FALSE
  	  		ELSE TRUE
@@ -75,14 +75,14 @@ BEGIN
 
 	Caribou_A : MODULE =
 	BEGIN
-		LOCAL a : CELL								        %caribou individual location
-		LOCAL t	: TIME								        %time steps (per day)
-		LOCAL h : HEALTH							        %caribou individual health
-		LOCAL r	: ARRAY CELL OF RESOURCES			%landscape resources/food availability
-		LOCAL move_A : FLAG							      %if the caribou will move to escape range
-		LOCAL p : ARRAY CELL OF BOOLEAN				%static predation matrix
-		LOCAL escape_range : CELL					    %landscape caribou retreat to when they feel at 
-		                                      %  risk and are healthy enough to travel long distances
+		LOCAL a : CELL					%caribou individual location
+		LOCAL t	: TIME					%time steps (per day)
+		LOCAL h : HEALTH				%caribou individual health
+		LOCAL r	: ARRAY CELL OF RESOURCES		%landscape resources/food availability
+		LOCAL move_A : FLAG				%if the caribou will move to escape range
+		LOCAL p : ARRAY CELL OF BOOLEAN			%static predation matrix
+		LOCAL escape_range : CELL			%landscape caribou retreat to when they feel at 
+		                                      		%  risk and are healthy enough to travel long distances
 	
 	DEFINITION
 		escape_range IN {c0000, c0001, c0003, c0005};
@@ -187,13 +187,13 @@ BEGIN
 									move_A'=check_h(h,p[a],r[a]);
 									t'=time(t);								
 		[]
-		a=c0010 AND move_A=FALSE --> a' IN {c0005,c0006,c0011,c0013,c0014,c0009,c0007};%
+		a=c0010 AND move_A=FALSE --> a' IN {c0005,c0006,c0011,c0013,c0014,c0009,c0007};
 									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
 									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
 									move_A'=check_h(h,p[a],r[a]);
 									t'=time(t);	
 		[]
-		a=c0011 AND move_A=FALSE --> a' IN {c0006,c0007,c0010,c0014};%
+		a=c0011 AND move_A=FALSE --> a' IN {c0006,c0007,c0010,c0014};
 									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
 									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
 									move_A'=check_h(h,p[a],r[a]);
@@ -211,7 +211,7 @@ BEGIN
 									move_A'=check_h(h,p[a],r[a]);
 									t'=time(t);								
 		[]
-		a=c0014 AND move_A=FALSE --> a' IN {c0010,c0009,c0013,c0011};%
+		a=c0014 AND move_A=FALSE --> a' IN {c0010,c0009,c0013,c0011};
 									h'=if r[a]=zero then inc_h_down(h) else inc_h_up(h) endif;
 									r'=[[c:CELL] if c=a then inc_r_down(r[a]) else r[c] endif];
 									move_A'=check_h(h,p[a],r[a]);
